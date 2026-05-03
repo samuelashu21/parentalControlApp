@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 
 const signToken = (id) =>
@@ -12,6 +13,9 @@ const safeUser = (user) => {
 
 // Coerce value to a plain string to prevent NoSQL operator injection
 const toStr = (val) => (val !== undefined && val !== null ? String(val) : val);
+
+// Validate that a value is a legitimate MongoDB ObjectId string
+const isValidObjectId = (val) => mongoose.Types.ObjectId.isValid(String(val));
 
 exports.register = async (req, res) => {
   try {
@@ -87,16 +91,22 @@ exports.linkChild = async (req, res) => {
 exports.updateDeviceStatus = async (req, res) => {
   try {
     const { batteryLevel, deviceToken } = req.body;
-    const update = { lastActive: new Date() };
+    // Build a safe $set update with only known scalar fields
+    const setFields = { lastActive: new Date() };
     if (batteryLevel !== undefined) {
       const level = Number(batteryLevel);
-      if (!isNaN(level)) update.batteryLevel = level;
+      if (!isNaN(level) && level >= 0 && level <= 100) setFields.batteryLevel = level;
     }
-    if (deviceToken !== undefined) update.deviceToken = toStr(deviceToken);
-    const user = await User.findByIdAndUpdate(req.user._id, update, {
-      new: true,
-      select: "-password",
-    });
+    if (deviceToken !== undefined) {
+      // Allow only alphanumeric + common push-token characters
+      const safeToken = toStr(deviceToken).replace(/[^a-zA-Z0-9\-_:.]/g, "");
+      setFields.deviceToken = safeToken;
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: setFields },
+      { new: true, select: "-password" }
+    );
     res.json({ user });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -110,8 +120,12 @@ exports.toggleTracking = async (req, res) => {
     }
     const { childId } = req.body;
     if (!childId) return res.status(400).json({ error: "childId is required" });
+    if (!isValidObjectId(childId)) {
+      return res.status(400).json({ error: "Invalid childId format" });
+    }
+    const childObjectId = new mongoose.Types.ObjectId(String(childId));
     const child = await User.findOne({
-      _id: toStr(childId),
+      _id: childObjectId,
       role: "child",
       linkedParent: req.user._id,
     });
@@ -131,7 +145,7 @@ exports.grantConsent = async (req, res) => {
     }
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { trackingConsent: true },
+      { $set: { trackingConsent: true } },
       { new: true, select: "-password" }
     );
     res.json({ user });
