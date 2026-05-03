@@ -72,7 +72,7 @@ export default function GeofencesScreen() {
       return;
     }
     if (radius < 50) {
-      Alert.alert("Validation", "Radius must be at least 50 metres.");
+      Alert.alert("Validation", "Radius must be at least 50 meters.");
       return;
     }
     setSubmitting(true);

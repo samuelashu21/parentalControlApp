@@ -2,6 +2,9 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 module.exports = async (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ error: "Server misconfiguration: JWT_SECRET is not set" });
+  }
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

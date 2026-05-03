@@ -1,6 +1,6 @@
 const Geofence = require("../models/Geofence");
 
-// Haversine formula – returns distance in metres between two lat/lng points
+// Haversine formula – returns distance in meters between two lat/lng points
 function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000; // Earth radius in metres
   const toRad = (deg) => (deg * Math.PI) / 180;

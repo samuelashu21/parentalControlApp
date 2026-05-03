@@ -11,8 +11,9 @@ const safeUser = (user) => {
   return obj;
 };
 
-// Coerce value to a plain string to prevent NoSQL operator injection
-const toStr = (val) => (val !== undefined && val !== null ? String(val) : val);
+// Coerce value to a plain string to prevent NoSQL operator injection.
+// Returns an empty string for null/undefined.
+const toStr = (val) => (val !== undefined && val !== null ? String(val) : "");
 
 // Validate that a value is a legitimate MongoDB ObjectId string
 const isValidObjectId = (val) => mongoose.Types.ObjectId.isValid(String(val));
