@@ -10,6 +10,9 @@ const safeUser = (user) => {
   return obj;
 };
 
+// Coerce value to a plain string to prevent NoSQL operator injection
+const toStr = (val) => (val !== undefined && val !== null ? String(val) : val);
+
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -19,11 +22,17 @@ exports.register = async (req, res) => {
     if (!["parent", "child"].includes(role)) {
       return res.status(400).json({ error: "Role must be 'parent' or 'child'" });
     }
-    const existing = await User.findOne({ email });
+    const safeEmail = toStr(email).toLowerCase().trim();
+    const existing = await User.findOne({ email: safeEmail });
     if (existing) {
       return res.status(409).json({ error: "Email already registered" });
     }
-    const user = await User.create({ name, email, password, role });
+    const user = await User.create({
+      name: toStr(name).trim(),
+      email: safeEmail,
+      password: toStr(password),
+      role,
+    });
     const token = signToken(user._id);
     res.status(201).json({ user: safeUser(user), token });
   } catch (err) {
@@ -37,9 +46,10 @@ exports.login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
-    const user = await User.findOne({ email });
+    const safeEmail = toStr(email).toLowerCase().trim();
+    const user = await User.findOne({ email: safeEmail });
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(toStr(password));
     if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
     const token = signToken(user._id);
     res.json({ user: safeUser(user), token });
@@ -63,7 +73,8 @@ exports.linkChild = async (req, res) => {
     }
     const { childEmail } = req.body;
     if (!childEmail) return res.status(400).json({ error: "childEmail is required" });
-    const child = await User.findOne({ email: childEmail, role: "child" });
+    const safeEmail = toStr(childEmail).toLowerCase().trim();
+    const child = await User.findOne({ email: safeEmail, role: "child" });
     if (!child) return res.status(404).json({ error: "Child account not found" });
     child.linkedParent = req.user._id;
     await child.save();
@@ -77,8 +88,11 @@ exports.updateDeviceStatus = async (req, res) => {
   try {
     const { batteryLevel, deviceToken } = req.body;
     const update = { lastActive: new Date() };
-    if (batteryLevel !== undefined) update.batteryLevel = batteryLevel;
-    if (deviceToken !== undefined) update.deviceToken = deviceToken;
+    if (batteryLevel !== undefined) {
+      const level = Number(batteryLevel);
+      if (!isNaN(level)) update.batteryLevel = level;
+    }
+    if (deviceToken !== undefined) update.deviceToken = toStr(deviceToken);
     const user = await User.findByIdAndUpdate(req.user._id, update, {
       new: true,
       select: "-password",
@@ -97,7 +111,7 @@ exports.toggleTracking = async (req, res) => {
     const { childId } = req.body;
     if (!childId) return res.status(400).json({ error: "childId is required" });
     const child = await User.findOne({
-      _id: childId,
+      _id: toStr(childId),
       role: "child",
       linkedParent: req.user._id,
     });
