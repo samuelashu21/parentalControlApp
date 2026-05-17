@@ -9,5 +9,7 @@ router.post("/link-child", auth, ctrl.linkChild);
 router.patch("/device-status", auth, ctrl.updateDeviceStatus);
 router.patch("/toggle-tracking", auth, ctrl.toggleTracking);
 router.patch("/grant-consent", auth, ctrl.grantConsent);
+router.get("/admin/users", auth, ctrl.listManagedUsers);
+router.delete("/admin/users/:userId", auth, ctrl.deleteManagedUser);
 
 module.exports = router;

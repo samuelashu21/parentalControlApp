@@ -17,6 +17,10 @@ const toStr = (val) => (val !== undefined && val !== null ? String(val) : "");
 
 // Validate that a value is a legitimate MongoDB ObjectId string
 const isValidObjectId = (val) => mongoose.Types.ObjectId.isValid(String(val));
+const ALLOWED_ROLES = ["admin", "parent", "child"];
+const MANAGED_ROLES = ["parent", "child"];
+
+const isAdmin = (user) => user?.role === "admin";
 
 exports.register = async (req, res) => {
   try {
@@ -24,10 +28,10 @@ exports.register = async (req, res) => {
     if (!name || !email || !password || !role) {
       return res.status(400).json({ error: "All fields are required" });
     }
-    if (!["parent", "child"].includes(role)) {
+    if (!ALLOWED_ROLES.includes(role)) {
       return res
         .status(400)
-        .json({ error: "Role must be 'parent' or 'child'" });
+        .json({ error: "Role must be 'admin', 'parent' or 'child'" });
     }
     const safeEmail = toStr(email).toLowerCase().trim();
     const existing = await User.findOne({ email: safeEmail });
@@ -161,6 +165,56 @@ exports.grantConsent = async (req, res) => {
       { new: true, select: "-password" },
     );
     res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.listManagedUsers = async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admins can manage users" });
+    }
+    const users = await User.find({ role: { $in: MANAGED_ROLES } })
+      .select("-password")
+      .sort({ createdAt: -1 });
+    const parents = users.filter((user) => user.role === "parent");
+    const children = users.filter((user) => user.role === "child");
+    res.json({
+      users,
+      summary: {
+        parents: parents.length,
+        children: children.length,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteManagedUser = async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only admins can manage users" });
+    }
+
+    const { userId } = req.params;
+    if (!isValidObjectId(userId)) {
+      return res.status(400).json({ error: "Invalid userId format" });
+    }
+
+    const user = await User.findById(userId).select("-password");
+    if (!user || !MANAGED_ROLES.includes(user.role)) {
+      return res.status(404).json({ error: "Managed user not found" });
+    }
+
+    await User.deleteOne({ _id: user._id });
+    await User.updateMany(
+      { role: "child", linkedParent: user._id },
+      { $unset: { linkedParent: "" } },
+    );
+
+    res.json({ message: "User deleted successfully", user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

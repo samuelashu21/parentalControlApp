@@ -26,7 +26,7 @@ export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"parent" | "child">("parent");
+  const [role, setRole] = useState<"admin" | "parent" | "child">("parent");
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password) {
@@ -96,7 +96,7 @@ export default function RegisterScreen() {
 
           <ThemedText style={styles.label}>Role</ThemedText>
           <View style={styles.roleRow}>
-            {(["parent", "child"] as const).map((r) => (
+            {(["admin", "parent", "child"] as const).map((r) => (
               <TouchableOpacity
                 key={r}
                 style={[
