@@ -81,7 +81,7 @@ function ParentDashboard() {
         </View>
 
         <ThemedText style={[styles.hint, { color: colors.icon }]}>
-          Use the tabs below to manage your child's location, geofences, and
+          Use the tabs below to manage your child location, geofences, and
           devices.
         </ThemedText>
       </ThemedView>
