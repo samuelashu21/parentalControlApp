@@ -1,4 +1,3 @@
-/** @jsx React.createElement */
 import { authFetch } from "@/services/api";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
