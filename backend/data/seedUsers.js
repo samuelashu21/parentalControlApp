@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
-const User = require("./models/User"); // adjust path if needed
-
+const User = require("../models/User");
 mongoose
   .connect("mongodb://127.0.0.1:27017/parentalcontrol", {
     useNewUrlParser: true,
@@ -12,7 +11,23 @@ mongoose
     // Clear old sample users (optional)
     await User.deleteMany({});
 
-    // Create parent users
+    // =========================
+    // Create Admin
+    // =========================
+    const admin = await User.create({
+      name: "System Admin",
+      email: "admin@example.com",
+      password: "123456",
+      role: "admin",
+      deviceToken: "admin-device-token-1",
+      batteryLevel: 100,
+      lastActive: new Date(),
+      trackingConsent: true,
+    });
+
+    // =========================
+    // Create Parent Users
+    // =========================
     const parent1 = await User.create({
       name: "John Doe",
       email: "john@example.com",
@@ -35,7 +50,9 @@ mongoose
       trackingConsent: true,
     });
 
-    // Create child users linked to parents
+    // =========================
+    // Create Child Users
+    // =========================
     const child1 = await User.create({
       name: "Michael Doe",
       email: "michael@example.com",
@@ -75,21 +92,12 @@ mongoose
       trackingConsent: true,
     });
 
-    const admin = await User.create({
-      name: "Michael Doe",
-      email: "michael@example.com",
-      password: "123456",
-      role: "admin",
-      linkedParent: parent1._id,
-      deviceToken: "admin-device-token-1",
-      batteryLevel: 60,
-      lastActive: new Date(),
-      isTrackingPaused: false,
-      trackingConsent: true,
-    });
-
+    console.log("=================================");
     console.log("Sample users inserted successfully");
+    console.log("=================================");
+
     console.log({
+      admin,
       parent1,
       parent2,
       child1,
@@ -100,6 +108,6 @@ mongoose
     process.exit();
   })
   .catch((err) => {
-    console.error(err);
+    console.error("Database Error:", err);
     process.exit(1);
   });
