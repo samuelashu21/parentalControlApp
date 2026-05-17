@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -13,8 +15,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { authFetch } from "../../services/api";
 
+interface ManagedUser {
+  _id: string;
+  name: string;
+  email: string;
+  role: "parent" | "child";
+  linkedParent?: string;
+}
+
 function ParentDashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
@@ -71,7 +81,7 @@ function ParentDashboard() {
         </View>
 
         <ThemedText style={[styles.hint, { color: colors.icon }]}>
-          Use the tabs below to manage your child's location, geofences, and
+          Use the tabs below to manage your child location, geofences, and
           devices.
         </ThemedText>
       </ThemedView>
@@ -173,9 +183,155 @@ function ChildDashboard() {
   );
 }
 
+function AdminDashboard() {
+  const { user, token, logout } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchUsers = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const res = await authFetch("/auth/admin/users", {}, token);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load users");
+      setUsers(data.users || []);
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleDeleteUser = async (managedUser: ManagedUser) => {
+    if (!token) return;
+    setDeletingId(managedUser._id);
+    try {
+      const res = await authFetch(
+        `/auth/admin/users/${managedUser._id}`,
+        { method: "DELETE" },
+        token,
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete user");
+      setUsers((prev) => prev.filter((item) => item._id !== managedUser._id));
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const parentCount = users.filter(
+    (managedUser) => managedUser.role === "parent",
+  ).length;
+  const childCount = users.filter(
+    (managedUser) => managedUser.role === "child",
+  ).length;
+
+  return (
+    <ScrollView contentContainerStyle={styles.scroll}>
+      <ThemedView style={styles.container}>
+        <View style={styles.header}>
+          <ThemedText type="title">Admin Dashboard</ThemedText>
+          <TouchableOpacity
+            onPress={logout}
+            style={[styles.logoutBtn, { borderColor: colors.icon }]}
+          >
+            <ThemedText style={{ color: colors.icon }}>Logout</ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        <ThemedText style={{ marginBottom: 12 }}>
+          Welcome, {user?.name}
+        </ThemedText>
+        <View style={[styles.roleChip, { backgroundColor: "#8e44ad" }]}>
+          <ThemedText style={styles.roleChipText}>Admin Account</ThemedText>
+        </View>
+
+        <View style={styles.cardRow}>
+          <View style={[styles.card, { borderColor: colors.tint }]}>
+            <ThemedText type="defaultSemiBold">Parents</ThemedText>
+            <ThemedText style={styles.countText}>{parentCount}</ThemedText>
+          </View>
+          <View style={[styles.card, { borderColor: colors.tint }]}>
+            <ThemedText type="defaultSemiBold">Children</ThemedText>
+            <ThemedText style={styles.countText}>{childCount}</ThemedText>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.tint }]}
+          onPress={fetchUsers}
+        >
+          <ThemedText style={styles.buttonText}>Refresh Users</ThemedText>
+        </TouchableOpacity>
+
+        {loading ? (
+          <ActivityIndicator style={{ marginTop: 24 }} />
+        ) : (
+          <>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Managed Users ({users.length})
+            </ThemedText>
+            {users.length === 0 ? (
+              <ThemedText style={[styles.empty, { color: colors.icon }]}>
+                No parent or child users found.
+              </ThemedText>
+            ) : (
+              users.map((managedUser) => (
+                <View
+                  key={managedUser._id}
+                  style={[styles.childCard, { borderColor: colors.icon }]}
+                >
+                  <ThemedText type="defaultSemiBold">
+                    {managedUser.name}
+                  </ThemedText>
+                  <ThemedText style={{ color: colors.icon }}>
+                    {managedUser.email}
+                  </ThemedText>
+                  <ThemedText>Role: {managedUser.role}</ThemedText>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleBtn,
+                      {
+                        backgroundColor: "#e74c3c",
+                        opacity: deletingId === managedUser._id ? 0.7 : 1,
+                      },
+                    ]}
+                    disabled={deletingId === managedUser._id}
+                    onPress={() => handleDeleteUser(managedUser)}
+                  >
+                    {deletingId === managedUser._id ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <ThemedText style={styles.toggleBtnText}>
+                        Delete User
+                      </ThemedText>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </>
+        )}
+      </ThemedView>
+    </ScrollView>
+  );
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   if (!user) return null;
+  if (user.role === "admin") return <AdminDashboard />;
   return user.role === "parent" ? <ParentDashboard /> : <ChildDashboard />;
 }
 
@@ -204,6 +360,8 @@ const styles = StyleSheet.create({
   },
   roleChipText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   sectionTitle: { marginBottom: 16 },
+  countText: { fontSize: 28, fontWeight: "700", marginTop: 6 },
+  empty: { textAlign: "center", marginTop: 12 },
   cardRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   card: {
     flex: 1,

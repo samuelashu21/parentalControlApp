@@ -1,3 +1,4 @@
+/** @jsx React.createElement */
 import { authFetch } from "@/services/api";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
@@ -5,7 +6,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
-  role: "parent" | "child";
+  role: "admin" | "parent" | "child";
   linkedParent?: string;
   isTrackingPaused?: boolean;
   trackingConsent?: boolean;
@@ -22,7 +23,7 @@ interface AuthContextType {
     name: string,
     email: string,
     password: string,
-    role: "parent" | "child",
+    role: "admin" | "parent" | "child",
   ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: string,
       email: string,
       password: string,
-      role: "parent" | "child",
+      role: "admin" | "parent" | "child",
     ) => {
       setIsLoading(true);
       try {

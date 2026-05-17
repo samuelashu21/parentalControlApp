@@ -1,5 +1,4 @@
 import { Tabs } from "expo-router";
-import React from "react";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -12,6 +11,7 @@ export default function TabLayout() {
   const { user } = useAuth();
 
   const isParent = user?.role === "parent";
+  const isChild = user?.role === "child";
 
   return (
     <Tabs
@@ -64,7 +64,7 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: "SOS",
-          href: !isParent ? undefined : null,
+          href: isChild ? undefined : null,
           tabBarIcon: ({ color }) => (
             <IconSymbol
               size={28}
@@ -78,7 +78,7 @@ export default function TabLayout() {
         name="privacy"
         options={{
           title: "Privacy",
-          href: !isParent ? undefined : null,
+          href: isChild ? undefined : null,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="lock.fill" color={color} />
           ),
