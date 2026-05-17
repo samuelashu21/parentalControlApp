@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Alert,
   ScrollView,
@@ -12,7 +11,7 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { authFetch } from "../services/api";
+import { authFetch } from "../../services/api";
 
 function ParentDashboard() {
   const { user, token, logout } = useAuth();
